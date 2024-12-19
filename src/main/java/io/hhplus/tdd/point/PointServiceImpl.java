@@ -7,17 +7,19 @@ import io.hhplus.tdd.exception.ErrorCode;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 @Slf4j
 @RequiredArgsConstructor
-public class PointServiceImpl implements PointService{
+@Service
+public class PointServiceImpl implements PointService {
 
     private final UserPointTable userPointTable;
     private final PointHistoryTable pointHistoryTable;
 
     @Override
     public UserPoint retrieve(long userId) {
-        if(userId < 1) {
+        if (userId < 1) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
 
@@ -27,7 +29,7 @@ public class PointServiceImpl implements PointService{
 
     @Override
     public List<PointHistory> retrieveHistory(long userId) {
-        if(userId < 1) {
+        if (userId < 1) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
 
@@ -36,9 +38,14 @@ public class PointServiceImpl implements PointService{
     }
 
     public UserPoint charge(long userId, long amount) {
-        UserPoint userPoint = userPointTable.selectById(userId)
-            .charge(amount);
-        userPointTable.insertOrUpdate(userPoint.id(), userPoint.point());
+        UserPoint userPoint;
+
+        synchronized (this) {
+            userPoint = userPointTable.selectById(userId);
+            userPoint = userPoint.charge(amount);
+
+            userPointTable.insertOrUpdate(userPoint.id(), userPoint.point());
+        }
 
         pointHistoryTable.insert(
             userId,
