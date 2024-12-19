@@ -5,6 +5,7 @@ import io.hhplus.tdd.database.UserPointTable;
 import io.hhplus.tdd.exception.BusinessException;
 import io.hhplus.tdd.exception.ErrorCode;
 import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class PointServiceImpl implements PointService {
 
+    private final ReentrantLock lock = new ReentrantLock();
     private final UserPointTable userPointTable;
     private final PointHistoryTable pointHistoryTable;
 
@@ -40,11 +42,14 @@ public class PointServiceImpl implements PointService {
     public UserPoint charge(long userId, long amount) {
         UserPoint userPoint;
 
-        synchronized (this) {
+        lock.lock();
+        try {
             userPoint = userPointTable.selectById(userId);
             userPoint = userPoint.charge(amount);
 
             userPointTable.insertOrUpdate(userPoint.id(), userPoint.point());
+        } finally {
+            lock.unlock();
         }
 
         pointHistoryTable.insert(
